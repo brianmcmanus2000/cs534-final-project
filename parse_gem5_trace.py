@@ -1,85 +1,111 @@
 import re
 
 input_file = "../gem5/m5out/debug.log"
-output_file = "/home/brianmcmanus/illinois/booksim/booksim_trace.txt"
+output_file = "DNNMark_trace.txt"
 
-# Match lines like:
-# 123456789012345: PerfectSwitch-0: Message: [ResponseMsg: addr = [0xdeadbeef, line 0xdeadbeef] Type = DATA_EXCLUSIVE Sender = L2Cache-1 Destination = [NetDest ...]
-pattern = re.compile(
-    r"^(\d+): .*?Message: \[ResponseMsg: addr = \[0x([0-9A-Fa-f]+), line 0x[0-9A-Fa-f]+\]\s*"
-    r"Type = (\w+)\s+Sender = ([\w-]+)\s+Destination = .*?([\w-]+)\s*\]"
-)
+CONTROL_SIZE = 8
+DATA_SIZE = 64
 
-# Packet size defaults
-packet_size_map = {
-    "MEMORY_DATA": 16,
-    "DATA_EXCLUSIVE": 16,
-    "EXCLUSIVE_UNBLOCK": 4,
-    "UNKNOWN": 4,
+msg_start_pattern = re.compile(r'^\s*(\d+): .*?Message:\s*\[(\w+Msg):\s*addr\s*=')
+type_pattern = re.compile(r'Type\s*=\s*(\w+)')
+sender_pattern = re.compile(r'Sender\s*=\s*([\w-]+)')
+netdest_pattern = re.compile(r'Destination\s*=\s*\[NetDest\s*\(\d+\)\s+([^\]]+)\]')
+msgsize_pattern = re.compile(r'MessageSize\s*=\s*(\w+)')
+requestor_pattern = re.compile(r'Requestor\s*=\s*([\w-]+)')
+
+# sender_to_netdest = {
+#     "Directory-0": 4,
+#     "CorePair-0": 12,
+#     "CorePair-1": 13,
+#     "TCP-0": 15,
+#     "TCP-1": 16,
+#     "TCP-2": 17,
+#     "TCP-3": 18,
+#     "DMA-0": 20,
+#     "TCC-0": 23,
+#     "DMA-1": 24,  
+#     "SQC-0": None,
+#     "SQC-1": None,
+#     "L3Cache-0": None,
+#     "NULL-0": None
+# } 
+
+booksim_src_mapping={
+        "Directory-0": 1,
+        "CorePair-0": 2,
+        "CorePair-1": 3,
+        "TCP-0": 4,
+        "TCP-1": 5,
+        "TCP-2": 6,
+        "TCP-3": 7,
+        "TCC-0": 8,
+        "SQC-0": 9,
+        "SQC-1": 10,
+        "L3Cache-0": 11,
+        "NULL-0": 12
+}
+booksim_dst_mapping={
+    4:1,
+    12:2,
+    13:3,
+    15:4,
+    16:5,
+    17:6,
+    18:7,
+    20:9,
+    23:8,
+    24:10
 }
 
-# Track type IDs
-msg_type_to_id = {}
-type_id_to_size = []
-next_type_id = 0
-
-# Node ID map
-node_map = {}
-next_node_id = 0
-
-def get_node_id(name):
-    global next_node_id
-    if name not in node_map:
-        node_map[name] = next_node_id
-        next_node_id += 1
-    return node_map[name]
-
-# First pass to get the initial timestamp
-timestamps = []
 
 with open(input_file, "r") as infile:
     for line in infile:
-        match = pattern.search(line)
-        if match:
-            timestamps.append(int(match.group(1)))
+        time_match = msg_start_pattern.search(line)
+        if time_match:
+            first_timestamp = int(time_match.group(1))
+            print(f"First timestamp: {first_timestamp}")
+            break
+    else:
+        raise ValueError("No matching messages found in the log!")
 
-if not timestamps:
-    raise ValueError("No matching messages found in the log!")
 
-first_timestamp = min(timestamps)
 
-# Second pass to write normalized trace
 with open(input_file, "r") as infile, open(output_file, "w") as outfile:
     for line in infile:
-        match = pattern.search(line)
+        match = msg_start_pattern.search(line)
         if match:
-            raw_time = int(match.group(1))
-            delay = (raw_time - first_timestamp)//1000
+            msg_time = int(match.group(1)) #get the tick the message was sent
+            sender_match = sender_pattern.search(line)
 
-            msg_type = match.group(3)
-            sender = match.group(4)
-            receiver = match.group(5)
+            if sender_match:
+                sender = sender_match.group(1)
+            else: #sometimes there is no sender field but there is a requestor field, so we use that if possible
+                requestor_match = requestor_pattern.search(line)
+                if requestor_match:
+                    sender = requestor_match.group(1)
+                else:
+                    sender = "UNKNOWN"
 
-            src = get_node_id(sender)
-            dst = get_node_id(receiver)
+            netdest_match = netdest_pattern.search(line)
+            netdest_raw = netdest_match.group(1).strip().split() #get the destination bits, as a list
 
-            size = packet_size_map.get(msg_type, packet_size_map["UNKNOWN"])
+            msgsize_match = msgsize_pattern.search(line)
+            msg_size = msgsize_match.group(1).lower() if msgsize_match else "" #get the message size
 
-            # Assign a type ID for BookSim (optional)
-            if msg_type not in msg_type_to_id:
-                msg_type_to_id[msg_type] = next_type_id
-                type_id_to_size.append(size)
-                next_type_id += 1
+            delay = (msg_time - first_timestamp) // 1000
 
-            type_id = msg_type_to_id[msg_type]
-
-            outfile.write(f"{delay} {src} {dst} {type_id}\n")
-
-# Optional: Print mappings for reference
+            src = booksim_src_mapping[sender]
+            size = DATA_SIZE if "data" in msg_size.lower() else CONTROL_SIZE
+            type_id = 1 if size == DATA_SIZE else 0
+            if(src!=None):
+                for i, val in enumerate(netdest_raw):
+                    if val == '1':
+                        dst = booksim_dst_mapping[i]
+                        outfile.write(f"{delay} {src} {dst} {type_id}\n")
+                        # print(f"delay: {delay}, src: {src}, dst: {dst}, msg_size: {msg_size}, type_id: {type_id}")
 print("=== Node ID Mapping ===")
-for name, nid in node_map.items():
-    print(f"{nid}: {name}")
+print(booksim_src_mapping)
 
 print("\n=== Message Type Mapping ===")
-for name, tid in msg_type_to_id.items():
-    print(f"{tid}: {name}, size={packet_size_map.get(name, 4)}")
+print("0: Control, size=8")
+print("1: Data, size=64")
