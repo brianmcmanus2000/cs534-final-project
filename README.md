@@ -20,4 +20,9 @@ In the m5out folder there are a bunch of files:<br/>
 
 
 # System statistics <br/>
-This simulated system is an X86 architecture. The CPU runs at 2GHz, there is only 500 Mb of ram that is addressable, although it is configured with 8Gb. The CPU has 16Mb of L3 cache, 256Kb of L2 cache, and 32 Kb of L1 Cache. The GPU is a gfx902 running at 1GHz. Throughout the simulation we recorded 3,662,552 messages.
+This simulated system is an X86 architecture. The CPU runs at 2GHz, there is only 500 Mb of ram that is addressable, although it is configured with 8Gb. The CPU has 16Mb of L3 cache, 256Kb of L2 cache, and 32 Kb of L1 Cache. The GPU is a gfx902 running at 1GHz. Throughout the simulation we recorded 3,662,552 messages.<br/>
+
+# Other Useful Information<br/>
+This link should go to a google drive folder with the trace file I generated and an image I took from a presentation that is a nice representation of our architecture (since I believe we're using the same setup) <br>
+Google Drive Link: https://drive.google.com/drive/folders/1DPO8vvwNfp9LAea37TbJYsuiSpnfurqp?usp=sharing <br>
+Presentation Source: https://www.gem5.org/assets/files/hpca2023-tutorial/gem5-tutorial-hpca23-gpu.pdf
