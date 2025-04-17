@@ -1,7 +1,7 @@
 import re
 
 input_file = "../gem5/m5out/debug.log"
-output_file = "DNNMark_trace.txt"
+output_file = "DNNMark_trace_master.txt"
 
 CONTROL_SIZE = 8
 DATA_SIZE = 64
@@ -58,23 +58,14 @@ booksim_dst_mapping={
 }
 
 
-with open(input_file, "r") as infile:
-    for line in infile:
-        time_match = msg_start_pattern.search(line)
-        if time_match:
-            first_timestamp = int(time_match.group(1))
-            print(f"First timestamp: {first_timestamp}")
-            break
-    else:
-        raise ValueError("No matching messages found in the log!")
-
-
-
 with open(input_file, "r") as infile, open(output_file, "w") as outfile:
+    last_timestamp=0
     for line in infile:
         match = msg_start_pattern.search(line)
         if match:
             msg_time = int(match.group(1)) #get the tick the message was sent
+            if(last_timestamp==0):
+                last_timestamp=msg_time
             sender_match = sender_pattern.search(line)
 
             if sender_match:
@@ -92,8 +83,8 @@ with open(input_file, "r") as infile, open(output_file, "w") as outfile:
             msgsize_match = msgsize_pattern.search(line)
             msg_size = msgsize_match.group(1).lower() if msgsize_match else "" #get the message size
 
-            delay = (msg_time - first_timestamp) // 1000
-
+            delay = (msg_time - last_timestamp)
+            last_timestamp=msg_time
             src = booksim_src_mapping[sender]
             size = DATA_SIZE if "data" in msg_size.lower() else CONTROL_SIZE
             type_id = 1 if size == DATA_SIZE else 0
