@@ -1,7 +1,7 @@
 import re
 
-input_file = "../gem5/m5out/debug.log"
-output_file = "DNNMark_trace_master.txt"
+input_file = "/mnt/ssd/fwd_pool.log"
+output_file = "forward_pool_trace.txt"
 
 CONTROL_SIZE = 8
 DATA_SIZE = 64
@@ -60,7 +60,11 @@ booksim_dst_mapping={
 
 with open(input_file, "r") as infile, open(output_file, "w") as outfile:
     last_timestamp=0
+    line_count=0
     for line in infile:
+        line_count+=1
+        if (line_count % 10000000 == 0):
+            print(f"processed {line_count} lines")
         match = msg_start_pattern.search(line)
         if match:
             msg_time = int(match.group(1)) #get the tick the message was sent
