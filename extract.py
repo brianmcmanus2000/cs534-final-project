@@ -30,7 +30,8 @@ def extract_stats(file_path):
 
 # Example usage
 if __name__ == "__main__":
-    stats = extract_stats("output.txt")  # or any output file
-
-    for key, value in stats.items():
-        print(f"{value}")
+    for i in range(100, 2001, 100):
+        stats = extract_stats(f"scale_{i}_dor.txt")  # or any output file
+        print(f"\nStats for scale = {i}:")
+        for key, value in stats.items():
+            print(f"{key}: {value}")
