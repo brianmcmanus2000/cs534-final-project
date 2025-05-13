@@ -3,3 +3,7 @@ m5out/fs
 DNNMark_trace.txt
 DNNMark_trace_master.txt
 /different_rates
+forward_activation_trace.txt
+forward_dropout_trace.txt
+forward_fc_trace.txt
+forward_pool_trace.txt
